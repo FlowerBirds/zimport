@@ -16,7 +16,7 @@ jobs:
         os: [ubuntu-latest, windows-latest]
         # zimport/util/tree.py uses `from typing import Self`, which
         # was added in Python 3.11. Earlier majors are skipped.
-        python-version: ["3.11", "3.12"]
+        python-version: ["3.11", "3.12", "3.13"]
 
     steps:
       - name: checkout

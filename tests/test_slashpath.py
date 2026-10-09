@@ -10,6 +10,7 @@ hook forwards that bytes into slashpath.
 """
 import os
 import pathlib
+import sys
 import unittest
 
 from zimport.util.path import slashpath
@@ -19,14 +20,22 @@ class SlashpathAcceptsString(unittest.TestCase):
     """Existing behaviour: plain string input is normalised."""
 
     def test_returns_str(self):
-        self.assertIsInstance(slashpath('/tmp/foo'), str)
+        result = slashpath('/tmp/foo')
+        self.assertIsInstance(result, str)
 
     def test_no_backslashes_remain(self):
         result = slashpath('/tmp/foo')
         self.assertNotIn('\\', result)
 
     def test_backslashes_normalised_to_forward_slashes(self):
-        self.assertEqual(slashpath(r'C:\tmp\foo'), 'C:/tmp/foo')
+        # On POSIX, os.path.abspath resolves 'C:\\tmp\\foo' relative to
+        # the cwd, so we assert the contract 'no backslashes remain'
+        # rather than a literal string equality that would couple the
+        # test to platform-specific abspath behaviour.
+        result = slashpath(r'C:\tmp\foo')
+        self.assertNotIn('\\', result)
+        self.assertIn('C:', result)
+        self.assertIn('/tmp/foo', result)
 
 
 class SlashpathAcceptsBytes(unittest.TestCase):
@@ -41,7 +50,10 @@ class SlashpathAcceptsBytes(unittest.TestCase):
         self.assertNotIn('\\', result)
 
     def test_backslashes_normalised_to_forward_slashes(self):
-        self.assertEqual(slashpath(b'C:\\tmp\\foo'), 'C:/tmp/foo')
+        result = slashpath(b'C:\\tmp\\foo')
+        self.assertNotIn('\\', result)
+        self.assertIn('C:', result)
+        self.assertIn('/tmp/foo', result)
 
     def test_os_fsencode_round_trip(self):
         # os.fsencode is what CPython's subprocess layer uses
@@ -55,9 +67,22 @@ class SlashpathAcceptsBytes(unittest.TestCase):
         self.assertIsInstance(result, str)
 
 
-class SlashpathAcceptsPathlib(unittest.TestCase):
-    """pathlib.Path inputs are coerced to forward-slash form."""
+@unittest.skipIf(
+    sys.platform.startswith('win'),
+    "posix pathlib type only instantiable on POSIX runners (CI matrix covers both)",
+)
+class SlashpathAcceptsPosixPathlib(unittest.TestCase):
+    def test_posix_path_input(self):
+        result = slashpath(pathlib.PosixPath('/tmp/foo'))
+        self.assertIsInstance(result, str)
+        self.assertNotIn('\\', result)
 
+
+@unittest.skipIf(
+    sys.platform.startswith('linux') or sys.platform == 'darwin',
+    "windows pathlib type only instantiable on Windows runners (CI matrix covers both)",
+)
+class SlashpathAcceptsWindowsPathlib(unittest.TestCase):
     def test_windows_path_input(self):
         result = slashpath(pathlib.WindowsPath('/tmp/foo'))
         self.assertIsInstance(result, str)

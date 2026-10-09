@@ -14,7 +14,9 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        # zimport/util/tree.py uses `from typing import Self`, which
+        # was added in Python 3.11. Earlier majors are skipped.
+        python-version: ["3.11", "3.12"]
 
     steps:
       - name: checkout

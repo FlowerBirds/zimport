@@ -1,5 +1,5 @@
 #-------------------------------------------------------------------------------
-# zimport v0.1.10 20250611
+# zimport v0.1.11 20261126
 # by 14mhz@hanmail.net, zookim@waveware.co.kr
 #
 # This code is in the public domain
@@ -8,7 +8,7 @@
 # refer to https://docs.python.org/3/reference/import.html#the-meta-path
 # refer to https://peps.python.org/pep-0302/
 
-__version__ = '0.1.10'
+__version__ = '0.1.11'
 
 import io, os, sys, importlib, time, shutil
 import ctypes

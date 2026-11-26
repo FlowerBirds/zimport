@@ -26,7 +26,8 @@ History
 2025/06/06 v0.1.7 : some minor bug fix, performance improvement  
 2025/06/07 v0.1.8 : support packages (librosa; https://github.com/librosa/librosa, matplotlib; https://github.com/matplotlib/matplotlib)  
 2025/06/08 v0.1.9 : some critical bug fix, support packages (diffusers; https://github.com/huggingface/diffusers, grpc; https://github.com/grpc/grpc/tree/master/src/python/grpcio, numba; https://github.com/numba/numba)  
-2025/06/11 v0.1.10 : support packages (cython; https://github.com/cython/cython, av; https://github.com/PyAV-Org/PyAV)
+2025/06/11 v0.1.10 : support packages (cython; https://github.com/cython/cython, av; https://github.com/PyAV-Org/PyAV)  
+2026/11/26 v0.1.11 : fix extension module discovery on linux (stable-abi '.abi3.so' and plain '.so' were not searched), support packages (uuid_utils; https://github.com/oittaa/uuid-utils)
 
 Support & Tested Package
 ------------
@@ -51,6 +52,7 @@ The following major packages have been tested:
 |scipy|p3.10,11,12 (win)|v0.1.0|Ｏ|
 |torch, torchvision, torchaudio|p3.10,11,12 (win, linux)|v0.1.1|Ｏ|
 |transformers|p3.10,11,12 (win)|v0.1.6|Ｏ|
+|uuid_utils|p3.10,11,12 (win, linux)|v0.1.11|Ｏ|
 |yaml|p3.10,11,12 (win)|v0.1.3|Ｏ|
 
 If you encounter any errors while using it, please be sure to provide feedback.  

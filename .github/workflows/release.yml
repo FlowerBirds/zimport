@@ -1,0 +1,143 @@
+name: release
+
+# Manual release build. The workflow file itself lives on the default
+# branch (workflow_dispatch is only offered for workflows that exist
+# there), but the artifact is always built from the release branch that
+# is selected when the workflow is triggered - the guard step below
+# refuses to publish from anything but a release/* branch.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to publish. Must match setup.py; leave empty to take it from the repository."
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: build wheel and publish to github release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+
+      - name: setup python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: refuse to publish from a non release branch
+        run: |
+          branch="${GITHUB_REF#refs/heads/}"
+          case "$branch" in
+            release/*)
+              echo "building from release branch '$branch'"
+              ;;
+            *)
+              echo "::error::refusing to publish from '$branch' - select a release/* branch"
+              exit 1
+              ;;
+          esac
+
+      - name: resolve and check version
+        run: |
+          python - <<'PY'
+          import re, sys, pathlib
+
+          def grab(path, pattern):
+              text = pathlib.Path(path).read_text(encoding='utf-8')
+              m = re.search(pattern, text)
+              if not m:
+                  sys.exit(f"[ERR] cannot find a version in {path}")
+              return m.group(1)
+
+          setup_version = grab('setup.py', r"version\s*=\s*['\"]([^'\"]+)['\"]")
+          main_version = grab('zimport/main.py', r"__version__\s*=\s*['\"]([^'\"]+)['\"]")
+          inner_version = grab('zimport/setup.py', r"version\s*=\s*['\"]([^'\"]+)['\"]")
+
+          versions = {
+              'setup.py': setup_version,
+              'zimport/main.py': main_version,
+              'zimport/setup.py': inner_version,
+          }
+          for name, value in versions.items():
+              print(f"[INF] {name} version = {value}")
+
+          if len(set(versions.values())) != 1:
+              sys.exit(f"[ERR] version mismatch between {versions}")
+
+          requested = "${{ inputs.version }}".strip()
+          if requested and requested != setup_version:
+              sys.exit(f"[ERR] requested version '{requested}' does not match the "
+                       f"repository version '{setup_version}'")
+
+          pathlib.Path('.release-version').write_text(setup_version, encoding='utf-8')
+          print(f"[INF] publishing version {setup_version}")
+          PY
+
+      - name: build wheel
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build
+          python -m build --wheel --outdir dist
+
+      - name: check wheel contents
+        run: |
+          python - <<'PY'
+          import glob, sys, zipfile, pathlib
+
+          version = pathlib.Path('dist/.version').read_text(encoding='utf-8')
+          wheels = [w for w in glob.glob('dist/*.whl')]
+          if len(wheels) != 1:
+              sys.exit(f"[ERR] expected exactly one wheel, got {wheels}")
+
+          wheel = wheels[0]
+          expected_name = f'zimport-{version}-py3-none-any.whl'
+          if pathlib.Path(wheel).name != expected_name:
+              sys.exit(f"[ERR] expected wheel '{expected_name}', got '{wheel}'")
+
+          names = zipfile.ZipFile(wheel).namelist()
+          required = [
+              'zimport/__init__.py',
+              'zimport/main.py',
+              'zimport/pathfinder.py',
+              'zimport/util/zip.py',
+              'zimport/util/path.py',
+          ]
+          missing = [r for r in required if r not in names]
+          if missing:
+              sys.exit(f"[ERR] wheel is missing {missing}")
+
+          print(f"[INF] wheel ok: {wheel}")
+          for n in sorted(names):
+              print(f"    {n}")
+          PY
+
+      - name: publish to github release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          VERSION="$(cat dist/.version)"
+          TAG="v${VERSION}"
+          echo "[INF] publishing $TAG"
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "[INF] release $TAG exists - uploading the wheel again"
+            gh release upload "$TAG" dist/*.whl --clobber
+          else
+            gh release create "$TAG" dist/*.whl \
+              --title "zimport ${VERSION}" \
+              --generate-notes \
+              --target "$GITHUB_SHA"
+          fi
+
+          gh release view "$TAG"

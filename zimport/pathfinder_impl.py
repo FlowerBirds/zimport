@@ -15,22 +15,45 @@ DBG = False
 #_suffixes = [s[0] for s in imp.get_suffixes() if s[2] == imp.C_EXTENSION] # imp deprecated since version 3.4, removed in version 3.12.
 _suffixes = importlib.machinery.EXTENSION_SUFFIXES
 #print(f"_suffixes ::: {_suffixes}") # ex) _suffixes ::: ['.cp311-win_amd64.pyd', '.pyd']
+EXTENSION_SUFFIXES = tuple(_suffixes) # every suffix the interpreter accepts for a C extension
 _PYTHON_VERSION_ = f"{sys.version_info.major}{sys.version_info.minor}"
 _PYCACHE_SUFFIX_ = ".cpython-" + _PYTHON_VERSION_ + ".pyc"
 #_PYTHON__PY_DLL_ = [s[0] for s in imp.get_suffixes() if s[2] == imp.C_EXTENSION][0]  # imp deprecated since version 3.4, removed in version 3.12.
 _PYTHON__PY_DLL_ = _suffixes[0]
 #print(f"_PYTHON__PY_DLL_ ::: {_PYTHON__PY_DLL_}") # ex) _PYTHON__PY_DLL_ ::: .cp311-win_amd64.pyd
-_zip_searchorder = \
-(
-    ('/__init__.pyc', True, True, False),
-    ('/__init__.py', False, True, False),
-    #('/__init__.pyi', False, True, False), # Do not import, refer PEP-484 document
-    ('.pyc', True, False, False),
-    ('.py', False, False, False),
-    #('.pyi', False, False, False),         # Do not import, refer PEP-484 document
-    ('.pyd', False, False, True),
-    (_PYTHON__PY_DLL_, False, False, True),
-) # suffix, isbytecode, ispackage, isdll
+
+def build_search_order(extension_suffixes = EXTENSION_SUFFIXES) :
+    '''(suffix, isbytecode, ispackage, isdll) lookup table.
+
+    Every suffix advertised by importlib.machinery.EXTENSION_SUFFIXES has to be
+    listed, not only the first one.  On linux that set is
+    ['.cpython-312-x86_64-linux-gnu.so', '.abi3.so', '.so'], and a package
+    shipping a stable-abi build (uuid_utils -> uuid_utils/_uuid_utils.abi3.so)
+    was not found in the archive at all :
+
+        ModuleNotFoundError: No module named 'uuid_utils._uuid_utils'
+
+    The order is kept as it was : source modules win over extension modules,
+    and '.pyd' stays ahead of the versioned windows suffix.
+    '''
+    order = \
+    [
+        ('/__init__.pyc', True, True, False),
+        ('/__init__.py', False, True, False),
+        #('/__init__.pyi', False, True, False), # Do not import, refer PEP-484 document
+        ('.pyc', True, False, False),
+        ('.py', False, False, False),
+        #('.pyi', False, False, False),         # Do not import, refer PEP-484 document
+        ('.pyd', False, False, True),
+    ]
+    seen = {'.pyd'}
+    for suffix in extension_suffixes :
+        if suffix in seen : continue
+        seen.add(suffix)
+        order.append((suffix, False, False, True))
+    return tuple(order)
+
+_zip_searchorder = build_search_order()
 
 def get_path_for_module(self, fullname):
     return self.virt + fullname.rpartition('.')[2]

@@ -116,23 +116,25 @@ class PathFinder(): #_bootstrap_external._LoaderBasics/LoaderBasics
         if DBG: print(f"[INF:::exec_module@pathfinder] exec_module : {spec.name} ::: {spec.origin}")
 
         pydpart = spec.name.replace('.', '/').rpartition('/')
-        pydname = '/'.join([pydpart[0], pydpart[2] + pathfinder_impl._PYTHON__PY_DLL_])
-        if pydname in self.zent : # 20250611 cython patch
-            replace_pyd = '/'.join([self.real, pydname])
-            replace_pth = path(replace_pyd)
-            if DBG : print(f"[INF:::exec_module@pathfinder] exec_module : load [{replace_pyd}] to [{replace_pth}]", file=sys.stdout)
-            m = self.custom_load_dynamic(module.__name__, replace_pth)
-            return m  
-
-        if spec.origin.endswith("__init__.py") : # 20240930 pyworld patch load 'package/package.cp312-win_amd64.pyd'
-            if DBG: print(f"[INF:::exec_module@pathfinder] exec_module : __init__ [{spec.origin}]", file=sys.stdout)
-            pydname = '/'.join([spec.name, spec.name.rpartition('.')[2] + pathfinder_impl._PYTHON__PY_DLL_]) # 'name/name.cp312-win_amd64.pyd'
+        for suffix in pathfinder_impl.EXTENSION_SUFFIXES : # 20250611 cython patch
+            pydname = '/'.join([pydpart[0], pydpart[2] + suffix])
             if pydname in self.zent :
                 replace_pyd = '/'.join([self.real, pydname])
                 replace_pth = path(replace_pyd)
                 if DBG : print(f"[INF:::exec_module@pathfinder] exec_module : load [{replace_pyd}] to [{replace_pth}]", file=sys.stdout)
                 m = self.custom_load_dynamic(module.__name__, replace_pth)
-                return m  # 20250610 kornia-rs patch
+                return m
+
+        if spec.origin.endswith("__init__.py") : # 20240930 pyworld patch load 'package/package.cp312-win_amd64.pyd'
+            if DBG: print(f"[INF:::exec_module@pathfinder] exec_module : __init__ [{spec.origin}]", file=sys.stdout)
+            for suffix in pathfinder_impl.EXTENSION_SUFFIXES :
+                pydname = '/'.join([spec.name, spec.name.rpartition('.')[2] + suffix]) # 'name/name.cp312-win_amd64.pyd'
+                if pydname in self.zent :
+                    replace_pyd = '/'.join([self.real, pydname])
+                    replace_pth = path(replace_pyd)
+                    if DBG : print(f"[INF:::exec_module@pathfinder] exec_module : load [{replace_pyd}] to [{replace_pth}]", file=sys.stdout)
+                    m = self.custom_load_dynamic(module.__name__, replace_pth)
+                    return m  # 20250610 kornia-rs patch
 
         if spec.origin.endswith(".pyd") or spec.origin.endswith(".so") or (".so." in spec.origin) or spec.origin.endswith(".dylib") : # 20250514 linux patch
             #def path(p): f = builtins.open(p); n = f.name; f.close(); return n.replace('\\', '/')

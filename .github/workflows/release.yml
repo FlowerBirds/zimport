@@ -50,7 +50,7 @@ jobs:
       - name: resolve and check version
         run: |
           python - <<'PY'
-          import re, sys, pathlib
+          import os, re, sys, pathlib
 
           def grab(path, pattern):
               text = pathlib.Path(path).read_text(encoding='utf-8')
@@ -79,8 +79,9 @@ jobs:
               sys.exit(f"[ERR] requested version '{requested}' does not match the "
                        f"repository version '{setup_version}'")
 
-          pathlib.Path('.release-version').write_text(setup_version, encoding='utf-8')
           print(f"[INF] publishing version {setup_version}")
+          with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as env:
+              env.write(f'VERSION={setup_version}\n')
           PY
 
       - name: build wheel
@@ -92,9 +93,9 @@ jobs:
       - name: check wheel contents
         run: |
           python - <<'PY'
-          import glob, sys, zipfile, pathlib
+          import glob, os, sys, zipfile, pathlib
 
-          version = pathlib.Path('dist/.version').read_text(encoding='utf-8')
+          version = os.environ['VERSION']
           wheels = [w for w in glob.glob('dist/*.whl')]
           if len(wheels) != 1:
               sys.exit(f"[ERR] expected exactly one wheel, got {wheels}")
@@ -126,7 +127,6 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          VERSION="$(cat dist/.version)"
           TAG="v${VERSION}"
           echo "[INF] publishing $TAG"
 

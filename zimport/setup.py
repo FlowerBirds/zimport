@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='zimport',
-    version='0.1.0',
+    version='0.1.11',
     description='zimport is used to load and manage python packages from zip-archives.',
     url='https://github.com/waveware4ai/zimport',
     long_description=open('README.md', 'r').read(),

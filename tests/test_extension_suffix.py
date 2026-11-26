@@ -43,6 +43,17 @@ def _searched_suffixes(search_order):
 class ExtensionSuffixCoverage(unittest.TestCase):
     """The finder's suffix table must cover every extension suffix."""
 
+    @unittest.skipIf(
+        sys.platform.startswith('win') or sys.platform == 'darwin',
+        "the premise of the fix is a linux-only suffix set",
+    )
+    def test_linux_runtime_advertises_the_abi3_suffix(self):
+        # The premise of this fix: on linux CPython accepts a stable-abi
+        # build, so '.abi3.so' has to be part of the lookup table.  If a
+        # future interpreter drops it, the constant below is stale and this
+        # test fails instead of silently asserting the wrong thing.
+        self.assertIn('.abi3.so', pathfinder_impl.EXTENSION_SUFFIXES)
+
     def test_every_extension_suffix_is_searched(self):
         # Fails on Linux: '.abi3.so' and '.so' were missing.
         searched = _searched_suffixes(pathfinder_impl._zip_searchorder)
